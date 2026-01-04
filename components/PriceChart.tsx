@@ -47,7 +47,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ products }) => {
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f9fafb' }} />
           <Bar dataKey="price" radius={[4, 4, 0, 0]}>
-            {data.map((entry, index) => (
+            {data.map((_, index) => (
               <Cell key={`cell-${index}`} fill={index === 0 ? '#2563eb' : '#94a3b8'} />
             ))}
           </Bar>
