@@ -23,7 +23,6 @@ protobuf==6.33.2
 pyarrow==22.0.0
 pydeck==0.9.1
 pyjokes==0.8.3
-pypiwin32==223
 python-dateutil==2.9.0.post0
 pyttsx3==2.98
 pytz==2025.2
@@ -41,4 +40,5 @@ tzdata==2025.3
 urllib3==2.6.2
 watchdog==6.0.0
 gunicorn==21.2.0
+
 
