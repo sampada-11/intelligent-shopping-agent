@@ -8,8 +8,9 @@ services:
       - key: GEMINI_API_KEY
         sync: false
 
-  - type: static
+  - type: web
     name: fashion-frontend
+    env: static
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
