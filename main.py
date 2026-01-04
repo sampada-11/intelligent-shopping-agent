@@ -10,18 +10,10 @@ import google.generativeai as genai
 # Initialize FastAPI app
 app = FastAPI(title="SmartShop AI Agent API")
 
-# CORS Configuration - Allow requests from React frontend
-# React dev server typically runs on localhost:5173 (Vite default) or 3000
-origins = [
-    "http://localhost:5173",  # Vite default port
-    "http://localhost:3000",  # Alternative port from vite.config.ts
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:3000",
-]
-
+# CORS Configuration - Allow requests from all origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
