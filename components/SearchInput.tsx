@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 
 interface SearchInputProps {
   onSearch: (query: string) => void;
