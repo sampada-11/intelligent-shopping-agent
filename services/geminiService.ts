@@ -1,6 +1,15 @@
 import { SearchResult, Product } from "../types";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const getApiBaseUrl = (): string => {
+  const url = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  // If URL doesn't start with http:// or https://, prepend https://
+  if (!url.startsWith("http")) {
+    return `https://${url}`;
+  }
+  return url;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const shoppingAgentService = {
   async analyzeAndSearch(query: string): Promise<SearchResult> {
