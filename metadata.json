@@ -1,0 +1,8 @@
+{
+  "name": "Copy of SmartShop AI Agent",
+  "description": "An intelligent shopping assistant that parses user intent, compares real-time prices via Google Search grounding, and provides personalized product recommendations with AI price forecasting and virtual try-on.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
