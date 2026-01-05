@@ -10,10 +10,16 @@ import google.generativeai as genai
 # Initialize FastAPI app
 app = FastAPI(title="SmartShop AI Agent API")
 
-# CORS Configuration - Allow requests from all origins
+# CORS Configuration - Allow requests from specific origins
+origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://fashion-frontend-o6bi.onrender.com"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
