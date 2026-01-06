@@ -34,12 +34,17 @@ const App: React.FC = () => {
   const handleSearch = async (query: string) => {
     setLoading(true);
     setError(null);
+    setResult(null);
     setSelectedProducts([]);
     try {
+      console.log("Starting search for query:", query);
       const data = await shoppingAgentService.analyzeAndSearch(query);
+      console.log("Search completed successfully");
       setResult(data);
     } catch (err: any) {
+      console.error("Search error:", err);
       setError(err.message || "An unexpected error occurred while searching.");
+      setResult(null);
     } finally {
       setLoading(false);
     }
@@ -220,6 +225,25 @@ const App: React.FC = () => {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="py-20 text-center">
+            <div className="inline-flex p-4 bg-red-100 rounded-full mb-6">
+              <i className="fas fa-exclamation-triangle text-red-600 text-4xl"></i>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Search Error</h2>
+            <p className="text-red-600 mt-2 max-w-md mx-auto font-medium">{error}</p>
+            <button
+              onClick={() => {
+                setError(null);
+                setResult(null);
+              }}
+              className="mt-6 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
           </div>
         )}
 

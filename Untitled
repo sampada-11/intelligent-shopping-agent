@@ -1,0 +1,24 @@
+I am getting an AttributeError because the GoogleSearch class is not found in the library version I am using.
+
+The Error: module 'google.ai.generativelanguage_v1beta.types.content' has no attribute 'GoogleSearch'
+
+The Solution: Please simplify my code by removing the complex types imports and using the Dictionary Syntax for the tool instead.
+
+Specific Steps:
+
+Remove the from google.ai.generativelanguage_v1beta.types import content line.
+
+Define the tool as a simple dictionary using the key Google Search_retrieval (this is the key that works for this library version).
+
+Correct Code to Apply:
+
+Python
+
+# 1. Define the tool as a simple dictionary
+# Note: We use 'google_search_retrieval' which is the compatible key for this library version.
+search_tool = { "google_search_retrieval": {} }
+2. Initialize the model
+model = genai.GenerativeModel( 'gemini-1.5-flash', tools=[search_tool] )
+
+
+**Task:** Apply this change to `@main.py` and ensure no other broken imports remain.

@@ -6,6 +6,7 @@ import os
 import json
 import base64
 import google.generativeai as genai
+from google.ai.generativelanguage_v1beta.types import content
 
 # Initialize FastAPI app
 app = FastAPI(title="SmartShop AI Agent API")
@@ -88,15 +89,19 @@ async def root():
 async def analyze_and_search(request: SearchQuery):
     """Analyze search query and return product results"""
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash-exp")
+        # Define the tool using the v1beta types
+        # Note: GoogleSearchRetrieval has been renamed to GoogleSearch
+        tool_config = content.Tool(
+            google_search=content.GoogleSearch()  # This was previously GoogleSearchRetrieval
+        )
+        
+        # Initialize the model with Google Search tool
+        model = genai.GenerativeModel("gemini-2.0-flash-exp", tools=[tool_config])
         
         # First call: Search with Google Search tool
         search_prompt = f'You are a professional shopping agent. Search for products matching this request: "{request.query}". Focus on current prices, availability, and specific models. Provide a comparative summary of the best options found.'
         
-        search_response = model.generate_content(
-            search_prompt,
-            tools=[{"google_search": {}}]
-        )
+        search_response = model.generate_content(search_prompt)
         
         summary = search_response.text or "No summary available."
         
