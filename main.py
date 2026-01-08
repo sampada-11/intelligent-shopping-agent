@@ -7,7 +7,7 @@ import json
 import base64
 from dotenv import load_dotenv
 import google.generativeai as genai
-from duckduckgo_search import DDGS
+from serpapi import GoogleSearch
 
 # Load environment variables from .env file
 load_dotenv()
@@ -66,16 +66,20 @@ def get_best_model_name():
         print(f"Error listing models: {e}")
         return "gemini-1.5-flash"
 
-# DuckDuckGo search function
+# SerpApi search function
 def search_google(query):
-    """Search for products using DuckDuckGo"""
+    """Search for products using SerpApi"""
     try:
-        with DDGS() as ddgs:
-            # Search for shopping results
-            results = list(ddgs.shopping(query, max_results=20))
-            return results
+        params = {
+            "q": query,
+            "tbm": "shop",  # Search Google Shopping
+            "api_key": os.environ.get("SERPAPI_KEY", "")
+        }
+        search = GoogleSearch(params)
+        results = search.get_dict()
+        return results.get("shopping_results", [])
     except Exception as e:
-        print(f"Error searching with DuckDuckGo: {e}")
+        print(f"Error searching with SerpApi: {e}")
         return []
 
 # Pydantic models matching TypeScript types
@@ -132,7 +136,7 @@ async def root():
 async def analyze_and_search(request: SearchQuery):
     """Analyze search query and return product results"""
     try:
-        # Search using DuckDuckGo
+        # Search using SerpApi
         shopping_results = search_google(request.query)
         
         # Convert results to JSON string for Gemini
@@ -154,13 +158,13 @@ Focus on current prices, availability, and specific models. Provide a comparativ
         search_response = model.generate_content(search_prompt)
         summary = search_response.text or "No summary available."
         
-        # Extract sources from DuckDuckGo results
+        # Extract sources from SerpApi results
         sources = []
         for result in shopping_results[:10]:  # Limit to first 10 results
             if isinstance(result, dict):
                 sources.append({
                     "title": result.get("title", "Source"),
-                    "uri": result.get("href", result.get("link", "#"))
+                    "uri": result.get("link", "#")
                 })
         
         # Second call: Parse response into structured JSON
