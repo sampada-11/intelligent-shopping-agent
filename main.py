@@ -5,8 +5,12 @@ from typing import List, Optional
 import os
 import json
 import base64
+from dotenv import load_dotenv
 import google.generativeai as genai
-from google.ai.generativelanguage_v1beta.types import content
+from duckduckgo_search import DDGS
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI(title="SmartShop AI Agent API")
@@ -27,13 +31,52 @@ app.add_middleware(
 )
 
 # Get API key from environment variable
-API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("API_KEY") or ""
+api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("API_KEY") or ""
 
-if not API_KEY:
-    print("Warning: GEMINI_API_KEY not set in environment variables")
+# Debug: Check if API key was loaded
+print(f"API Key found: {bool(api_key)}")
+
+# Configure Gemini API explicitly
+if api_key:
+    genai.configure(api_key=api_key)
+    print("Gemini API configured successfully")
 else:
-    # Configure Gemini API
-    genai.configure(api_key=API_KEY)
+    print("Warning: GEMINI_API_KEY, GOOGLE_API_KEY, or API_KEY not set in environment variables")
+
+# Helper function to dynamically select a working model
+def get_best_model_name():
+    """Dynamically select the best available model"""
+    try:
+        models = genai.list_models()
+        model_names = [model.name for model in models]
+        
+        # First, try to find a model containing "flash"
+        for model_name in model_names:
+            if "flash" in model_name.lower():
+                return model_name
+        
+        # If no flash model, try to find one containing "pro"
+        for model_name in model_names:
+            if "pro" in model_name.lower():
+                return model_name
+        
+        # Fallback to default
+        return "gemini-1.5-flash"
+    except Exception as e:
+        print(f"Error listing models: {e}")
+        return "gemini-1.5-flash"
+
+# DuckDuckGo search function
+def search_google(query):
+    """Search for products using DuckDuckGo"""
+    try:
+        with DDGS() as ddgs:
+            # Search for shopping results
+            results = list(ddgs.shopping(query, max_results=20))
+            return results
+    except Exception as e:
+        print(f"Error searching with DuckDuckGo: {e}")
+        return []
 
 # Pydantic models matching TypeScript types
 class BudgetRange(BaseModel):
@@ -89,39 +132,43 @@ async def root():
 async def analyze_and_search(request: SearchQuery):
     """Analyze search query and return product results"""
     try:
-        # Define the tool using the v1beta types
-        # Note: GoogleSearchRetrieval has been renamed to GoogleSearch
-        tool_config = content.Tool(
-            google_search=content.GoogleSearch()  # This was previously GoogleSearchRetrieval
-        )
+        # Search using DuckDuckGo
+        shopping_results = search_google(request.query)
         
-        # Initialize the model with Google Search tool
-        model = genai.GenerativeModel("gemini-2.0-flash-exp", tools=[tool_config])
+        # Convert results to JSON string for Gemini
+        results_json = json.dumps(shopping_results, indent=2)
         
-        # First call: Search with Google Search tool
-        search_prompt = f'You are a professional shopping agent. Search for products matching this request: "{request.query}". Focus on current prices, availability, and specific models. Provide a comparative summary of the best options found.'
+        # Initialize model without tools - standard text model
+        model_name = get_best_model_name()
+        print(f"Using Gemini Model: {model_name}")
+        model = genai.GenerativeModel(model_name)
+        
+        # First call: Summarize the search results
+        search_prompt = f'''You are a professional shopping agent. Summarize these product search results for the query: "{request.query}".
+
+Search Results (JSON):
+{results_json}
+
+Focus on current prices, availability, and specific models. Provide a comparative summary of the best options found.'''
         
         search_response = model.generate_content(search_prompt)
-        
         summary = search_response.text or "No summary available."
         
-        # Extract sources from grounding metadata
+        # Extract sources from DuckDuckGo results
         sources = []
-        if hasattr(search_response, 'candidates') and search_response.candidates:
-            candidate = search_response.candidates[0]
-            if hasattr(candidate, 'grounding_metadata') and candidate.grounding_metadata:
-                if hasattr(candidate.grounding_metadata, 'grounding_chunks'):
-                    grounding_chunks = candidate.grounding_metadata.grounding_chunks or []
-                    for chunk in grounding_chunks:
-                        if hasattr(chunk, 'web') and chunk.web:
-                            sources.append({
-                                "title": getattr(chunk.web, 'title', 'Source') or "Source",
-                                "uri": getattr(chunk.web, 'uri', '#') or "#"
-                            })
+        for result in shopping_results[:10]:  # Limit to first 10 results
+            if isinstance(result, dict):
+                sources.append({
+                    "title": result.get("title", "Source"),
+                    "uri": result.get("href", result.get("link", "#"))
+                })
         
         # Second call: Parse response into structured JSON
         parse_prompt = f'''Based on the search results for "{request.query}" and the following context: "{summary}", 
 extract a list of 4-6 specific products with their details and parse the user's intent.
+
+Search Results (JSON):
+{results_json}
 
 Return a JSON object with this structure:
 {{
@@ -148,8 +195,10 @@ Return a JSON object with this structure:
   ]
 }}'''
         
+        parse_model_name = get_best_model_name()
+        print(f"Using Gemini Model (parse): {parse_model_name}")
         parse_model = genai.GenerativeModel(
-            "gemini-2.0-flash-exp",
+            parse_model_name,
             generation_config={"response_mime_type": "application/json"}
         )
         parse_response = parse_model.generate_content(parse_prompt)
@@ -173,7 +222,9 @@ Return a JSON object with this structure:
 async def predict_price_trend(request: PriceTrendRequest):
     """Predict price trend for a product"""
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash-exp")
+        model_name = get_best_model_name()
+        print(f"Using Gemini Model: {model_name}")
+        model = genai.GenerativeModel(model_name)
         
         prompt = f'''As an AI market analyst, predict the price trend for this product: "{request.product.name}" currently priced at {request.product.price} on {request.product.platform}. 
 Consider seasonal trends, typical tech cycles, and competitor pricing. 
@@ -190,7 +241,9 @@ Output a short, reassuring forecast like "Steady - unlikely to drop soon" or "Wa
 async def visualize_try_on(request: TryOnRequest):
     """Analyze virtual try-on with image"""
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash-exp")
+        model_name = get_best_model_name()
+        print(f"Using Gemini Model: {model_name}")
+        model = genai.GenerativeModel(model_name)
         
         # Decode base64 image
         image_data = base64.b64decode(request.base64Image)
